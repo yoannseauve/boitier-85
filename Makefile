@@ -18,10 +18,11 @@ PRINTMAP =
 .PHONY: app flash clean erase dump tags
 
 all: app
+all: CFLAGS += -O2
 
 debug: CFLAGS += -ggdb
 debug: PRINTMAP += --print-map > linker_map
-debug: |clean all
+debug: |clean app
 
 app: | make_dir app.bin
 
@@ -42,7 +43,7 @@ clean:
 	rm -Rf obj
 
 flash: app
-	$(STL) write app.bin 0x8000000
+	$(STL) --reset write app.bin 0x8000000
 
 dump:
 	$(DUMP) --source --syms app.elf
