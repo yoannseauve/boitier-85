@@ -109,7 +109,7 @@ int mini_snscanf(char buffer[], unsigned int bufferSize, const char* formatStrin
 					*va_arg(valist, unsigned int*) = numberBuffer;
 					break;
 				default :
-					return -1;
+					return 0;
 			}
 			formatString++;
 		}
@@ -118,7 +118,7 @@ int mini_snscanf(char buffer[], unsigned int bufferSize, const char* formatStrin
 			if(*(formatString++) != buffer[buffCount++])
 			{
 				va_end(valist);
-				return -1;
+				return 0;
 			}
 		}
 	}

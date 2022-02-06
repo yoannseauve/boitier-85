@@ -2,7 +2,7 @@
 #include "stm32f103x6.h"
 #include "uart.h"
 
-struct uartRxData uartRxData[2] = {{"", "", 0, 0, NULL}, {"", "", 0, 0, NULL}};
+struct uartRxData uartRxData[2] = {{"", "", 0, 0, 0, 0, -1}, {"", "", 0, 0, 0, 0, -1}};
 
 void uartSetup()
 {
@@ -66,7 +66,8 @@ void uart1Interrupt()
 		if (uartRxData[0].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n')
 		{
 			uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex] = '\0';
-			uartRxData[0].buffToRead = uartRxData[0].buff[uartRxData[0].buffToWriteNum];
+			uartRxData[0].buffToReadNum = uartRxData[0].buffToWriteNum;
+			uartRxData[0].dataSize[uartRxData[0].buffToWriteNum] = uartRxData[0].buffWriteIndex;
 			uartRxData[0].buffToWriteNum = uartRxData[0].buffToWriteNum ? 0 : 1;
 			uartRxData[0].buffWriteIndex = 0;
 		}	
@@ -82,28 +83,37 @@ void uart2Interrupt()
 		if (uartRxData[1].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n' || data == '>')
 		{
 			uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex] = '\0';
-			uartRxData[1].buffToRead = uartRxData[1].buff[uartRxData[1].buffToWriteNum];
+			uartRxData[1].buffToReadNum = uartRxData[1].buffToWriteNum;
+			uartRxData[1].dataSize[uartRxData[1].buffToWriteNum] = uartRxData[1].buffWriteIndex;
 			uartRxData[1].buffToWriteNum = uartRxData[1].buffToWriteNum ? 0 : 1;
 			uartRxData[1].buffWriteIndex = 0;
 		}	
 	}
 }
 
-char* uartBufferToRead(unsigned int uartPort)
+char* uartBufferToRead(unsigned int uartPort, unsigned int * dataSize)
 {
 	if (uartPort > 2)
 		return NULL;
-	return  uartRxData[uartPort].buffToRead;
+	int buffToReadNum = uartRxData[uartPort].buffToReadNum;
+	
+	if(buffToReadNum == -1)
+		return NULL;
+
+	if (dataSize != NULL)
+		*dataSize = uartRxData[uartPort].dataSize[buffToReadNum];
+
+	return  uartRxData[uartPort].buff[buffToReadNum];
 }
 
 void uartBufferTreated(unsigned int uartPort)
 {
 	if (uartPort > 2)
 		return ;
-	if (uartRxData[uartPort].buffToRead == uartRxData[uartPort].buff[uartRxData[uartPort].buffToWriteNum])	//the other buff is already full
+	if (uartRxData[uartPort].buffToReadNum == uartRxData[uartPort].buffToWriteNum)	//the other buff is already full
 	{
-		uartRxData[uartPort].buffToRead = uartRxData[uartPort].buff[uartRxData[uartPort].buffToWriteNum ? 0 : 1];
+		uartRxData[uartPort].buffToReadNum = uartRxData[uartPort].buffToWriteNum ? 0 : 1;
 	}
 	else
-		uartRxData[uartPort].buffToRead = NULL;
+		uartRxData[uartPort].buffToReadNum = -1;
 }
