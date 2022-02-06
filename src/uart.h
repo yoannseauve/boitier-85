@@ -14,9 +14,12 @@ struct uartRxData {
 //write buffToRead = NULL when done to free the buffer
 
 void uartSetup();
-void uart1InitiateSend(char * str, unsigned int size);
-void uart2InitiateSend(char * str, unsigned int size);
-char* uartBufferToRead(unsigned int uartPort, unsigned int * dataSize);
-void uartBufferTreated(unsigned int uartPort);
+void uart1InitiateSend(const char * str, unsigned int size);
+void uart2InitiateSend(const char * str, unsigned int size);
+char* uartBufferToRead(unsigned int const uartPort, unsigned int * const dataSize);
+void uartBufferTreated(unsigned int const uartPort);
+
+#define uart1RemainToSend() (uint32_t const volatile)(DMA1_Channel4->CNDTR & 0xFFFF)
+#define uart2RemainToSend() (uint32_t const volatile)(DMA1_Channel7->CNDTR & 0xFFFF)
 
 #endif

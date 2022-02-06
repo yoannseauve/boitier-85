@@ -37,7 +37,7 @@ void uartSetup()
 	NVIC_EnableIRQ(USART2_IRQn); //uart1 interrupt enable
 }
 
-void uart1InitiateSend(char * str, unsigned int size)
+void uart1InitiateSend(const char * str, unsigned int size)
 {
 	while(DMA1_Channel4->CNDTR > 0);  //wait for previous DMA transfer to be done
 
@@ -47,7 +47,7 @@ void uart1InitiateSend(char * str, unsigned int size)
 	DMA1_Channel4->CCR |= DMA_CCR_EN; //channel enable
 }
 
-void uart2InitiateSend(char * str, unsigned int size)
+void uart2InitiateSend(const char * str, unsigned int size)
 {
 	while(DMA1_Channel7->CNDTR > 0);  //wait for previous DMA transfer to be done
 
@@ -91,14 +91,18 @@ void uart2Interrupt()
 	}
 }
 
-char* uartBufferToRead(unsigned int uartPort, unsigned int * dataSize)
+char* uartBufferToRead(unsigned int const uartPort, unsigned int * const dataSize)
 {
 	if (uartPort > 2)
 		return NULL;
 	int buffToReadNum = uartRxData[uartPort].buffToReadNum;
-	
+
 	if(buffToReadNum == -1)
+	{
+		if (dataSize != NULL)
+			*dataSize = 0;
 		return NULL;
+	}
 
 	if (dataSize != NULL)
 		*dataSize = uartRxData[uartPort].dataSize[buffToReadNum];
@@ -106,7 +110,7 @@ char* uartBufferToRead(unsigned int uartPort, unsigned int * dataSize)
 	return  uartRxData[uartPort].buff[buffToReadNum];
 }
 
-void uartBufferTreated(unsigned int uartPort)
+void uartBufferTreated(unsigned int const uartPort)
 {
 	if (uartPort > 2)
 		return ;
