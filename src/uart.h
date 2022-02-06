@@ -1,10 +1,10 @@
 #ifndef __UART_H__
 #define __UART_H__
 
-#define UART_RX_BUFF_SIZE 10
+#define UART_RX_BUFF_SIZE 30
 
 struct uartRxData {
-	char buff[2][UART_RX_BUFF_SIZE];
+	char buff[2][UART_RX_BUFF_SIZE+1];
 	unsigned char buffToWriteNum;
 	unsigned int buffWriteIndex;
 	char *buffToRead;
@@ -14,4 +14,8 @@ struct uartRxData {
 
 void uartSetup();
 void uart1InitiateSend(char * str, unsigned int size);
+void uart2InitiateSend(char * str, unsigned int size);
+char* uartBufferToRead(unsigned int uartPort);
+void uartBufferTreated(unsigned int uartPort);
+
 #endif

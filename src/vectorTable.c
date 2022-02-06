@@ -2,7 +2,9 @@
 
 void _reset_handler(void);
 void uart1Interrupt(void);
+void uart2Interrupt(void);
 void TIM3Interrupt(void);
+void systickInterrupt(void);
 
 void (*__interupt__vectors__[]) (void) __attribute__((section(".vector_table"))) =
 {
@@ -20,7 +22,7 @@ void (*__interupt__vectors__[]) (void) __attribute__((section(".vector_table")))
 	_reset_handler,		//Debug 		Monitor Debug Monitor							0x0000_0030
 	NULL,  				//Reserved							0x0000_0034
 	_reset_handler,		//PendSV 		Pendable request for system service							0x0000_0038
-	_reset_handler,		//SysTick 		System tick timer							0x0000_003c
+	systickInterrupt,		//SysTick 		System tick timer							0x0000_003c
 	_reset_handler,		//WWDG 		Window watchdog interrupt							0x0000_0040
 	_reset_handler,		//PVD 		PVD through EXTI Line detection interrupt							0x0000_0044
 	_reset_handler,		//TAMPER 		Tamper interrupt							0x0000_0048
@@ -59,7 +61,7 @@ void (*__interupt__vectors__[]) (void) __attribute__((section(".vector_table")))
 	_reset_handler,		//SPI1 		SPI1 global interrupt							0x0000_00cc
 	_reset_handler,		//SPI2 		SPI2 global interrupt							0x0000_00d0
 	uart1Interrupt,		//USART1 		USART1 global interrupt							0x0000_00d4
-	_reset_handler,		//USART2 		USART2 global interrupt							0x0000_00d8
+	uart2Interrupt,		//USART2 		USART2 global interrupt							0x0000_00d8
 	_reset_handler,		//USART3 		USART3 global interrupt							0x0000_00dc
 	_reset_handler,		//EXTI15_10 		EXTI Line[15:10] interrupts							0x0000_00e0
 	_reset_handler,		//RTCAlarm 		RTC alarm through EXTI line interrupt							0x0000_00e4

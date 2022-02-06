@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 void timersSettup();
+void systickSetup();
 
 struct injectionData{
 	uint16_t injectionStartTime;

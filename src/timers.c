@@ -1,13 +1,13 @@
 #include <stddef.h>
 #include "stm32f103x6.h"
 #include "timers.h"
+#include "globalVariables.h"
 
 //timer_1 -> output
 //timer_3 -> input capture
 //tim_3 clk slave of tim 1
 
 struct injectionData injector[4]; //initializer at 0 (injectOff)
-extern unsigned char enrichissementInjection;
 
 void timersSettup()
 {
@@ -69,7 +69,7 @@ void timersSettup()
 		| TIM_DIER_CC4IE; //enable interrupt on TI4 capture
 
 
-	NVIC_SetPriority(TIM3_IRQn, 0x02); //TIM3 interrupt at medium priority
+	NVIC_SetPriority(TIM3_IRQn, 0x01); //TIM3 interrupt at high priority
 	NVIC_EnableIRQ(TIM3_IRQn); //TIM3 interrupt enable
 
 	TIM3->CR1 = TIM_CR1_CEN; //enable TIM3
@@ -78,11 +78,8 @@ void timersSettup()
 } 
 
 
-extern volatile uint16_t debug_count[3];
-extern volatile uint16_t debug_count_flag;
 void TIM3Interrupt()
 {
-	//debug_count = TIM3->SR;
 	if (TIM3->SR & TIM_SR_CC1IF)	//capture occured in TI1
 	{
 		//!!!!!!!!!!!!!!!!! read TIM3->CCR1 register to clear the flag
@@ -105,10 +102,6 @@ void TIM3Interrupt()
 			TIM3->CCER |= TIM_CCER_CC1P; //TI1 caputre on falling edge
 
 			uint16_t CNT = TIM1->CNT;
-			debug_count[0]=value;
-			debug_count[1]=CNT;
-			debug_count[2]=injector[0].injectionStartTime;
-			debug_count_flag=1;
 			if((value - CNT) > (0xFFFF - 100) || value == CNT) // if match was missed during code execution
 			{
 				GPIOA->ODR ^= GPIO_ODR_ODR12;
@@ -129,4 +122,20 @@ void TIM3Interrupt()
 	{
 		//!!!!!!!!!!!!!!!!! read TIM3->CCR4 register to clear the flag
 	}
+}
+
+void systickSetup()
+{
+	SysTick->LOAD = (uint32_t)(0x6DDD00) - 1;                         /* set reload register, 100ms delay for Fcore=72MHz*/
+	SysTick->CTRL  = SysTick_CTRL_CLKSOURCE_Msk |
+		SysTick_CTRL_TICKINT_Msk |
+		SysTick_CTRL_ENABLE_Msk;                         /* Enable SysTick IRQ and SysTick Timer */
+	NVIC_SetPriority (SysTick_IRQn, 0x02); /* set Priority for Systick Interrupt to medium*/
+	NVIC_EnableIRQ(SysTick_IRQn); //Systick interrupt enable
+}
+
+void systickInterrupt()
+{
+	GPIOC->ODR ^= GPIO_ODR_ODR13;
+	systicksCounter++;
 }

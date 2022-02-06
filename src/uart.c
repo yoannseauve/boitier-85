@@ -2,24 +2,39 @@
 #include "stm32f103x6.h"
 #include "uart.h"
 
-volatile struct uartRxData uartRxData[2] = {{"", "", 0, 0, NULL}, {"", "", 0, 0, NULL}};
+struct uartRxData uartRxData[2] = {{"", "", 0, 0, NULL}, {"", "", 0, 0, NULL}};
 
 void uartSetup()
 {
-
+	//UART1
 	USART1->BRR = 117 << USART_BRR_DIV_Mantissa_Pos | 3 << USART_BRR_DIV_Fraction_Pos; //for 38400 baud as long as Pclk2 = 72MHz
 	USART1->CR1 = USART_CR1_UE //UART enable
-	| USART_CR1_TE	//Transmitter enable
-	| USART_CR1_RE  //Receive enable
-	| USART_CR1_RXNEIE;	//Reveive interrupt enable
+		| USART_CR1_TE	//Transmitter enable
+		| USART_CR1_RE  //Receive enable
+		| USART_CR1_RXNEIE;	//Reveive interrupt enable
 	USART1->CR3 = USART_CR3_DMAT;	//Enable DMA for transmitter
 
 	DMA1_Channel4->CCR = DMA_CCR_MINC //Memory increment mode
-	| DMA_CCR_DIR; //read from memory
+		| DMA_CCR_DIR; //read from memory
 	DMA1_Channel4->CPAR = (uint32_t) &USART1->DR;
-	
+
 	NVIC_SetPriority(USART1_IRQn, 0x03); //uart1 interrupt at low priority
 	NVIC_EnableIRQ(USART1_IRQn); //uart1 interrupt enable
+
+	//UART2
+	USART2->BRR = 117 << USART_BRR_DIV_Mantissa_Pos | 3 << USART_BRR_DIV_Fraction_Pos; //for 38400 baud as long as Pclk2 = 72MHz
+	USART2->CR1 = USART_CR1_UE //UART enable
+		| USART_CR1_TE	//Transmitter enable
+		| USART_CR1_RE  //Receive enable
+		| USART_CR1_RXNEIE;	//Reveive interrupt enable
+	USART2->CR3 = USART_CR3_DMAT;	//Enable DMA for transmitter
+
+	DMA1_Channel7->CCR = DMA_CCR_MINC //Memory increment mode
+		| DMA_CCR_DIR; //read from memory
+	DMA1_Channel7->CPAR = (uint32_t) &USART2->DR;
+
+	NVIC_SetPriority(USART2_IRQn, 0x03); //uart1 interrupt at low priority
+	NVIC_EnableIRQ(USART2_IRQn); //uart1 interrupt enable
 }
 
 void uart1InitiateSend(char * str, unsigned int size)
@@ -32,10 +47,63 @@ void uart1InitiateSend(char * str, unsigned int size)
 	DMA1_Channel4->CCR |= DMA_CCR_EN; //channel enable
 }
 
+void uart2InitiateSend(char * str, unsigned int size)
+{
+	while(DMA1_Channel7->CNDTR > 0);  //wait for previous DMA transfer to be done
+
+	DMA1_Channel7->CCR &= ~DMA_CCR_EN; //channel disable
+	DMA1_Channel7->CMAR = (uint32_t) str;
+	DMA1_Channel7->CNDTR = size;
+	DMA1_Channel7->CCR |= DMA_CCR_EN; //channel enable
+}
+
 void uart1Interrupt()
 {
 	if(USART1->SR & USART_SR_RXNE_Msk)  //One byte was received
 	{
-		uartRxData[0].buff[0][0] = USART1->DR;
+		char data = USART1->DR;
+		uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex++] = data;
+		if (uartRxData[0].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n')
+		{
+			uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex] = '\0';
+			uartRxData[0].buffToRead = uartRxData[0].buff[uartRxData[0].buffToWriteNum];
+			uartRxData[0].buffToWriteNum = uartRxData[0].buffToWriteNum ? 0 : 1;
+			uartRxData[0].buffWriteIndex = 0;
+		}	
 	}
+}
+
+void uart2Interrupt()
+{
+	if(USART2->SR & USART_SR_RXNE_Msk)  //One byte was received
+	{
+		char data = USART2->DR;
+		uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex++] = data;
+		if (uartRxData[1].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n' || data == '>')
+		{
+			uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex] = '\0';
+			uartRxData[1].buffToRead = uartRxData[1].buff[uartRxData[1].buffToWriteNum];
+			uartRxData[1].buffToWriteNum = uartRxData[1].buffToWriteNum ? 0 : 1;
+			uartRxData[1].buffWriteIndex = 0;
+		}	
+	}
+}
+
+char* uartBufferToRead(unsigned int uartPort)
+{
+	if (uartPort > 2)
+		return NULL;
+	return  uartRxData[uartPort].buffToRead;
+}
+
+void uartBufferTreated(unsigned int uartPort)
+{
+	if (uartPort > 2)
+		return ;
+	if (uartRxData[uartPort].buffToRead == uartRxData[uartPort].buff[uartRxData[uartPort].buffToWriteNum])	//the other buff is already full
+	{
+		uartRxData[uartPort].buffToRead = uartRxData[uartPort].buff[uartRxData[uartPort].buffToWriteNum ? 0 : 1];
+	}
+	else
+		uartRxData[uartPort].buffToRead = NULL;
 }
