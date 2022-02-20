@@ -94,7 +94,7 @@ void TIM3Interrupt()
 		}
 		else if (injector[0].ECUState == injectOn)
 		{
-			register uint16_t value = TIM3->CCR1 + enrichissementInjection * ((0x0000FFFF & (TIM3->CCR1 - injector[0].injectionStartTime)) >> 7);
+			register uint16_t value = TIM3->CCR1 + enrichmentInjection * ((0x0000FFFF & (TIM3->CCR1 - injector[0].injectionStartTime)) >> 7);
 			TIM1->CCR1 = value;
 
 			uint16_t plop = TIM1->CCMR1;

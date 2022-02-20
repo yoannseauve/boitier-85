@@ -14,6 +14,7 @@ void clkSetup()
 	RCC->CFGR |= RCC_CFGR_SW_1; //switch SYSCLK on PLL
 	//RCC->CR &= ~RCC_CR_HSION; //stop HSI DON'T, it breaks programming function
 
+	RCC->APB1ENR |= RCC_APB1ENR_USART2EN;	//enable uart2 clk
 	RCC->APB2ENR |= RCC_APB2ENR_USART1EN	//enable uart1 clk
 		| RCC_APB2ENR_IOPAEN    //enable GPIO port A clk
 		| RCC_APB2ENR_IOPBEN    //enable GPIO port B clk

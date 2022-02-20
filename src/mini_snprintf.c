@@ -39,6 +39,25 @@ int mini_snprintf(char buffer[], unsigned int bufferSize, const char* formatStri
 					} while(count > 0);
 					break;
 
+				case 'd':
+					{
+						int num = va_arg(valist, int);
+						if (num <0)
+						{
+							buffer[buffCount++] = '-';
+							num *= -1;
+							if (buffCount >= bufferSize - 1)
+								break;
+						}
+						count = mini_itos(buffConvert, num);
+						do {
+							buffer[buffCount++] = buffConvert[10 - count--];
+							if (buffCount >= bufferSize - 1)
+								break;	
+						} while(count > 0);
+						break;
+					}
+
 				case 's':
 					{
 						char *string = va_arg(valist, char*);
