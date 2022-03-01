@@ -22,7 +22,7 @@ void uartSetup()
 	NVIC_EnableIRQ(USART1_IRQn); //uart1 interrupt enable
 
 	//UART2
-	USART2->BRR = 117 << USART_BRR_DIV_Mantissa_Pos | 3 << USART_BRR_DIV_Fraction_Pos; //for 38400 baud as long as Pclk2 = 72MHz
+	USART2->BRR = 58 << USART_BRR_DIV_Mantissa_Pos | 9 << USART_BRR_DIV_Fraction_Pos; //for 38400 (38420) baud as long as Pclk1 = 36MHz
 	USART2->CR1 = USART_CR1_UE //UART enable
 		| USART_CR1_TE	//Transmitter enable
 		| USART_CR1_RE  //Receive enable
