@@ -14,7 +14,8 @@ void clkSetup()
 	RCC->CFGR |= RCC_CFGR_SW_1; //switch SYSCLK on PLL
 	//RCC->CR &= ~RCC_CR_HSION; //stop HSI DON'T, it breaks programming function
 
-	RCC->APB1ENR |= RCC_APB1ENR_USART2EN;	//enable uart2 clk
+	RCC->APB1ENR |= RCC_APB1ENR_USART2EN	//enable uart2 clk
+		| RCC_APB1ENR_I2C1EN; 				//enable I2C1 clk
 	RCC->APB2ENR |= RCC_APB2ENR_USART1EN	//enable uart1 clk
 		| RCC_APB2ENR_IOPAEN    //enable GPIO port A clk
 		| RCC_APB2ENR_IOPBEN    //enable GPIO port B clk
@@ -45,7 +46,7 @@ void gpioSetup()
 	GPIOA->ODR |= GPIO_ODR_ODR10 //PA10 (uart1 rx) pull-up
 		| GPIO_ODR_ODR3; //PA3 (uart2 rx) pull-up
 
-	GPIOB->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_CNF1 | GPIO_CRL_CNF4 | GPIO_CRL_CNF5);
+	GPIOB->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_CNF1 | GPIO_CRL_CNF4 | GPIO_CRL_CNF5 | GPIO_CRL_CNF6 | GPIO_CRL_CNF7);
 	GPIOB->ODR |= GPIO_ODR_ODR0 //PB0 (TIM3_CH3) high (pull-up)
 		| GPIO_ODR_ODR1 //PB1 (TIM3_CH4) high (pull-up)
 		| GPIO_ODR_ODR4 //PB4 (TIM3_CH1_remap) high (pull-up)
@@ -53,7 +54,9 @@ void gpioSetup()
 	GPIOB->CRL |= GPIO_CRL_CNF0_1  //PB0 (TIM3_CH3) input pull-up/pull-down
 		| GPIO_CRL_CNF1_1  //PB1 (TIM3_CH4) input pull-up/pull-down
 		| GPIO_CRL_CNF4_1  //PB4 (TIM3_CH1_remap) input pull-up/pull-down
-		| GPIO_CRL_CNF5_1; //PB5 (TIM3_CH2_remap) input pull-up/pull-down
+		| GPIO_CRL_CNF5_1 //PB5 (TIM3_CH2_remap) input pull-up/pull-down
+		| GPIO_CRL_CNF6_0 | GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6_1 //PB6 (I2C SCL1) output alternate open drain Max speed 2Mhz
+		| GPIO_CRL_CNF7_0 | GPIO_CRL_CNF7_1 | GPIO_CRL_MODE7_1; //PB7 (I2C SDA1) output alternate open drain Max speed 2Mhz
 
 	GPIOB->CRH &= ~(GPIO_CRH_CNF13 | GPIO_CRH_CNF14 | GPIO_CRH_CNF15);
 	GPIOB->CRH |= GPIO_CRH_CNF13_1 | GPIO_CRH_MODE13_0 | GPIO_CRH_MODE13_1 //PB13 (TIM1_CH1N) output push-pull 
