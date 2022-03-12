@@ -7,9 +7,10 @@
 #include "mini_snprintf.h"
 #include "timers.h"
 #include "operationData.h"
+#include "i2c.h"
 
-#define BAT_SEND_BUFFER_SIZE 30
-#define ELM_SEND_BUFFER_SIZE 10
+#define BAT_SEND_BUFFER_SIZE 50
+#define ELM_SEND_BUFFER_SIZE 20
 #define UART_FRAME_TIMEOUT 50 //5s
 
 enum boitierStatu{Normal, Manual, Bridge};
@@ -33,6 +34,7 @@ void main (void)
 	uartSetup();
 	timersSettup();
 	systickSetup();
+	i2cSetup();
 
 	GPIOC->ODR |= GPIO_ODR_ODR13;
 
@@ -55,34 +57,57 @@ void main (void)
 
 		enrichmentInjection = (savedOperationData.standardEnrichmentInjection + additionalEnrichement) > 127? 127 : savedOperationData.standardEnrichmentInjection + additionalEnrichement; //compute enrichement
 
-		dataFromBt = uartBufferToRead(0, &dataFromBtSize);
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
+		dataFromBt = uartBufferToRead(1, &dataFromBtSize);
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
 
 		//boitier control
 		if(dataFromBt && mini_snscanf(dataFromBt, dataFromBtSize, "bat") == 3 )
 		{
 			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat help") >= 4)
 			{
-				uart1InitiateSend("bat [cmd] to control boitier85\rcmd:\r", 36);
-				uart1InitiateSend("normal : switch to normal mode\r", 31);
-				uart1InitiateSend("manual : switch to manual mode and set enrichment by hand\r", 62);
-				uart1InitiateSend("bridge : switch to bridge mode and communicate with ELM327\r", 59);
-				uart1InitiateSend("info : display system infos\r", 28);
+				uart2InitiateSend("bat [cmd] to control boitier85\ncmd:\n", 36);
+				uart2InitiateSend("normal : switch to normal mode\n", 31);
+				uart2InitiateSend("manual : switch to manual mode and set enrichment by hande\n", 59);
+				uart2InitiateSend("bridge : switch to bridge mode and communicate with ELM327\n", 59);
+				uart2InitiateSend("info : display system infos\n", 28);
+				uart2InitiateSend("set t0 XX : set starter t0 parameter to XX - 40°C\n", 51);
+				uart2InitiateSend("set t1 XX : set starter t1 parameter to XX - 40°C\n", 51);
+				uart2InitiateSend("set starter : set starter additional enrichment parameter to XX/127\n\n", 69);
 			}
 			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat info") >= 4)
 			{
-				uart1InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Enrichissement : %u/128\r", enrichmentInjection)); 
-				while(uart1RemainToSend());	
-				uart1InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Temperature liquide : %d°C\r", coolantTemperatur-40)); 
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Enrichissement : %u/128\n", enrichmentInjection)); 
+				while(uart2RemainToSend());	
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Temperature liquide : %d°C\n", coolantTemperatur-40)); 
+				while(uart2RemainToSend());	
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Starter t0 parameter : %d°C\n", savedOperationData.t0-40)); 
+				while(uart2RemainToSend());	
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Starter t1 parameter : %d°C\n", savedOperationData.t1-40)); 
+				while(uart2RemainToSend());	
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Starter additional enrichment : %d/127\n\n", savedOperationData.starterEnrichmentInjection)); 
 			}
-			uartBufferTreated(0);
-			continue;//dataFromBt = uartBufferToRead(0, &dataFromBtSize);
+
+			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat set t0") >= 10)
+			{
+				mini_snscanf(dataFromBt, dataFromBtSize, "bat set t0 %u", &savedOperationData.t0);
+			}
+
+			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat set t1") >= 10)
+			{
+				mini_snscanf(dataFromBt, dataFromBtSize, "bat set t1 %u", &savedOperationData.t1);
+			}
+			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat set starter") >= 15)
+			{
+				mini_snscanf(dataFromBt, dataFromBtSize, "bat set starter %u", &savedOperationData.starterEnrichmentInjection);
+			}
+			uartBufferTreated(1);
+			continue;
 		}
 
-		if (dataFromBt != NULL && dataFromBt[0] == '\r' && dataFromBtSize == 1) //simple newline
+		if (dataFromBt != NULL && (dataFromBt[0] == '\r' || dataFromBt[0] == '\n') && dataFromBtSize == 1) //simple newline
 		{
-			uart1InitiateSend(dataFromBt, dataFromBtSize);	//echo the newline
-			uartBufferTreated(0);
+			uart2InitiateSend(dataFromBt, dataFromBtSize);	//echo the newline
+			uartBufferTreated(1);
 			continue;//dataFromBt = uartBufferToRead(0, &dataFromBtSize);
 		}
 
@@ -100,7 +125,7 @@ void main (void)
 					case 0: //coolant temperature
 						if(!waintingForData)
 						{
-							uart2InitiateSend("0105\r", 5);
+							uart1InitiateSend("0105\r", 5);
 							lastObdRequestDate = systicksCounter;	
 							waintingForData = 1;
 						}
@@ -125,13 +150,13 @@ void main (void)
 			case Bridge: //act as a bridge between ELM an BT interface
 				if(dataFromBt)
 				{
-					uart2InitiateSend(dataFromBt, dataFromBtSize);
-					uartBufferTreated(0);
+					uart1InitiateSend(dataFromBt, dataFromBtSize);
+					uartBufferTreated(1);
 				}
 				if(dataFromELM)
 				{
-					uart1InitiateSend(dataFromELM, dataFromELMSize);
-					uartBufferTreated(1);
+					uart2InitiateSend(dataFromELM, dataFromELMSize);
+					uartBufferTreated(0);
 				}
 				break;
 		}
@@ -148,27 +173,53 @@ void initELM()
 	unsigned int dataFromELMSize;
 	char elmBuffer[ELM_SEND_BUFFER_SIZE];
 
-	while(uartBufferToRead(1, &dataFromELMSize)) //clean data from ELB buffer
-		uartBufferTreated(1);
+	while(uartBufferToRead(0, &dataFromELMSize)) //clean data from ELB buffer
+		uartBufferTreated(0);
 
-	uart2InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT Z\r")); //reset
+	uart1InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT Z\r")); //reset
 	transmissionDate = systicksCounter;
 	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
 	{
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
 		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OBDII  V1.5") == 11)
 		{
-			uartBufferTreated(1);
+			uartBufferTreated(0);
 			break;
 		}
 	}
 
 	while(uart2RemainToSend());	
-	uart2InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT E0\r")); //echo OFF
+	uart1InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT E0\r")); //echo OFF
 	transmissionDate = systicksCounter;
 	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
 	{
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
+		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
+		{
+			uartBufferTreated(0);
+			break;
+		}
+	}
+
+	while(uart2RemainToSend());	
+	uart1InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT L0\r")); //Linefeed OFF
+	transmissionDate = systicksCounter;
+	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
+	{
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
+		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
+		{
+			uartBufferTreated(0);
+			break;
+		}
+	}
+
+	while(uart2RemainToSend());	
+	uart1InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "ATAT0\r")); //adaptative timing OFF
+	transmissionDate = systicksCounter;
+	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
+	{
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
 		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
 		{
 			uartBufferTreated(1);
@@ -177,40 +228,14 @@ void initELM()
 	}
 
 	while(uart2RemainToSend());	
-	uart2InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT L0\r")); //Linefeed OFF
+	uart1InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT SP3\r")); //set protocol to 3 (ISO 9141-2) to be changed depanding of the vehicule, automatic protocol detection does not seem to work properly
 	transmissionDate = systicksCounter;
 	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
 	{
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
+		dataFromELM = uartBufferToRead(0, &dataFromELMSize);
 		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
 		{
-			uartBufferTreated(1);
-			break;
-		}
-	}
-
-	while(uart2RemainToSend());	
-	uart2InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "ATAT0\r")); //adaptative timing OFF
-	transmissionDate = systicksCounter;
-	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
-	{
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
-		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
-		{
-			uartBufferTreated(1);
-			break;
-		}
-	}
-
-	while(uart2RemainToSend());	
-	uart2InitiateSend(elmBuffer, mini_snprintf(elmBuffer, ELM_SEND_BUFFER_SIZE, "AT SP3\r")); //set protocol to 3 (ISO 9141-2) to be changed depanding of the vehicule, automatic protocol detection does not seem to work properly
-	transmissionDate = systicksCounter;
-	while( (systicksCounter - transmissionDate) < timeout) // wait for ELM response 
-	{
-		dataFromELM = uartBufferToRead(1, &dataFromELMSize);
-		if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "OK") == 2)
-		{
-			uartBufferTreated(1);
+			uartBufferTreated(0);
 			break;
 		}
 	}
