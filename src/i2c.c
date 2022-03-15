@@ -64,10 +64,10 @@ int memWrite(uint16_t memAddr, unsigned int nbBytes, unsigned char bytes[])
 		return -1;
 
 	//memory ADDR
-	I2C1->DR = (memAddr >> 8) && 0xff;
+	I2C1->DR = (memAddr >> 8) & 0xff;
 	if (i2cWriteDataCheckFail())
 		return -1;
-	I2C1->DR = memAddr && 0xff;
+	I2C1->DR = memAddr & 0xff;
 	if (i2cWriteDataCheckFail())
 		return -1;
 
@@ -89,6 +89,8 @@ int memRead(uint16_t memAddr, unsigned int nbBytes, unsigned char bytes[])
 	if (nbBytes == 0)
 		return 0;
 	unsigned int bytesCount = 0;
+	//enable data ACK during reception
+	I2C1->CR1 |= I2C_CR1_ACK;
 
 	//START
 	I2C1->CR1 |= I2C_CR1_START;
@@ -102,10 +104,10 @@ int memRead(uint16_t memAddr, unsigned int nbBytes, unsigned char bytes[])
 		return -1;
 
 	//memory ADDR
-	I2C1->DR = (memAddr >> 8) && 0xff;
+	I2C1->DR = (memAddr >> 8) & 0xff;
 	if (i2cWriteDataCheckFail())
 		return -1;
-	I2C1->DR = memAddr && 0xff;
+	I2C1->DR = memAddr & 0xff;
 	if (i2cWriteDataCheckFail())
 		return -1;
 
@@ -131,7 +133,8 @@ int memRead(uint16_t memAddr, unsigned int nbBytes, unsigned char bytes[])
 			I2C1->CR1 |= I2C_CR1_STOP;
 		}
 		while(!(I2C1->SR1 & I2C_SR1_RXNE));
-		I2C1->DR = bytes[bytesCount++];
+		//I2C1->DR = bytes[bytesCount++];
+		bytes[bytesCount++] = I2C1->DR;
 	}
 	return 0;
 }

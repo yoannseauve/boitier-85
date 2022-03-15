@@ -1,5 +1,6 @@
 #ifndef __I2C_h__
 #define __I2C_h__
+#include "stm32f103x6.h"
 
 #define EEPROM_ADDR 0b10100000
 
