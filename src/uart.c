@@ -2,7 +2,7 @@
 #include "stm32f103x6.h"
 #include "uart.h"
 
-struct uartRxData uartRxData[2] = {{"", "", 0, 0, 0, 0, -1}, {"", "", 0, 0, 0, 0, -1}};
+struct uartRxData uartRxData[2] = {{{"", ""}, {0, 0}, 0, 0, -1}, {{"", ""}, {0, 0}, 0, 0, -1}};
 
 void uartSetup()
 {

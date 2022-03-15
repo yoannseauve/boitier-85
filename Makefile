@@ -1,6 +1,6 @@
-CC = arm-none-eabi-gcc
+CC = arm-none-eabi-gcc -ffreestanding
 AS = arm-none-eabi-as
-LD = arm-none-eabi-ld
+LD = arm-none-eabi-ld 
 BIN = arm-none-eabi-objcopy
 DUMP = arm-none-eabi-objdump
 STL = st-flash
@@ -11,7 +11,7 @@ SRC := $(wildcard $(SRC_DIR)/*.c)
 SRC += $(wildcard $(SRC_DIR)/*.s)
 OBJ := $(foreach f, $(SRC:.c=.o), obj/$(notdir $(f:.s=.o)))
 
-override CFLAGS += -mthumb -mcpu=cortex-m3 -MD -I ./src/Includes/StInclude/STM32F1xx/ -I ./src/Includes/StInclude/core/ -fdata-sections -ffunction-sections
+override CFLAGS += -mthumb -mcpu=cortex-m3 -MD -I ./src/Includes/StInclude/STM32F1xx/ -I ./src/Includes/StInclude/core/ -fdata-sections -ffunction-sections -W -Wall
 override LDFLAGS += -T linker.ld --print-memory-usage --gc-sections
 PRINTMAP =
 
@@ -20,7 +20,7 @@ PRINTMAP =
 all: app
 all: CFLAGS += -O2
 
-debug: CFLAGS += -ggdb
+debug: CFLAGS += -ggdb 
 debug: PRINTMAP += --print-map > linker_map
 debug: |clean app
 
