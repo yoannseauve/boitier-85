@@ -65,6 +65,11 @@ void uart1Interrupt()
 		uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex++] = data;
 		if (uartRxData[0].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n')
 		{
+			if(uartRxData[0].buffWriteIndex == 1) //'\r' or '\n' is the first and only character, ignore the line
+			{
+				uartRxData[0].buffWriteIndex = 0;
+				return;
+			}
 			uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex] = '\0';
 			uartRxData[0].buffToReadNum = uartRxData[0].buffToWriteNum;
 			uartRxData[0].dataSize[uartRxData[0].buffToWriteNum] = uartRxData[0].buffWriteIndex;
@@ -82,6 +87,12 @@ void uart2Interrupt()
 		uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex++] = data;
 		if (uartRxData[1].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n' || data == '>')
 		{
+
+			if(uartRxData[1].buffWriteIndex == 1) //'\r' or '\n' is the first and only character, ignore the line
+			{
+				uartRxData[1].buffWriteIndex = 0;
+				return;
+			}
 			uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex] = '\0';
 			uartRxData[1].buffToReadNum = uartRxData[1].buffToWriteNum;
 			uartRxData[1].dataSize[uartRxData[1].buffToWriteNum] = uartRxData[1].buffWriteIndex;
