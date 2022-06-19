@@ -119,7 +119,7 @@ int mini_snscanf(char buffer[], unsigned int bufferSize, const char* formatStrin
 				case 'x':
 					numberBuffer = 0;
 					char caracType;
-					while((caracType = (buffer[buffCount] >= '0' && buffer[buffCount] <= '9')? '0' : (buffer[buffCount] >= 'a' && buffer[buffCount] <= 'f')? 'a' : (buffer[buffCount] >= 'A' && buffer[buffCount] <= 'F')? 'A' : 0))
+					while((caracType = (buffer[buffCount] >= '0' && buffer[buffCount] <= '9')? '0' : (buffer[buffCount] >= 'a' && buffer[buffCount] <= 'f')? ('a'-10) : (buffer[buffCount] >= 'A' && buffer[buffCount] <= 'F')? ('A'-10) : 0))
 					{
 						numberBuffer = 16*numberBuffer + buffer[buffCount++] - caracType;
 						if (buffCount >= bufferSize - 1)

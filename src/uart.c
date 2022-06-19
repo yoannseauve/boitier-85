@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include "stm32f103x6.h"
 #include "uart.h"
+#include "globalVariables.h"
 
 struct uartRxData uartRxData[2] = {{{"", ""}, {0, 0}, 0, 0, -1}, {{"", ""}, {0, 0}, 0, 0, -1}};
 
@@ -39,6 +40,7 @@ void uartSetup()
 
 void uart1InitiateSend(const char * str, unsigned int size)
 {
+	elmReadyToReceive = 0;
 	while(DMA1_Channel4->CNDTR > 0);  //wait for previous DMA transfer to be done
 
 	DMA1_Channel4->CCR &= ~DMA_CCR_EN; //channel disable
@@ -62,8 +64,11 @@ void uart1Interrupt()
 	if(USART1->SR & USART_SR_RXNE_Msk)  //One byte was received
 	{
 		char data = USART1->DR;
+		if (data == '>')
+			elmReadyToReceive = 1;
+
 		uartRxData[0].buff[uartRxData[0].buffToWriteNum][uartRxData[0].buffWriteIndex++] = data;
-		if (uartRxData[0].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n')
+		if (uartRxData[0].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n' || data == '>')
 		{
 			if(uartRxData[0].buffWriteIndex == 1) //'\r' or '\n' is the first and only character, ignore the line
 			{
@@ -85,9 +90,8 @@ void uart2Interrupt()
 	{
 		char data = USART2->DR;
 		uartRxData[1].buff[uartRxData[1].buffToWriteNum][uartRxData[1].buffWriteIndex++] = data;
-		if (uartRxData[1].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n' || data == '>')
+		if (uartRxData[1].buffWriteIndex >= UART_RX_BUFF_SIZE || data == '\r' || data == '\n')
 		{
-
 			if(uartRxData[1].buffWriteIndex == 1) //'\r' or '\n' is the first and only character, ignore the line
 			{
 				uartRxData[1].buffWriteIndex = 0;

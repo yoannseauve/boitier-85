@@ -136,6 +136,6 @@ void systickSetup()
 
 void systickInterrupt()
 {
-	GPIOC->ODR ^= GPIO_ODR_ODR13;
+	//GPIOC->ODR ^= GPIO_ODR_ODR13;
 	systicksCounter++;
 }

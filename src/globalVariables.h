@@ -4,7 +4,8 @@
 #include "stm32f103x6.h"
 
 
-extern unsigned volatile char enrichmentInjection;
-extern uint16_t volatile systicksCounter;
+extern volatile unsigned char enrichmentInjection;
+extern volatile uint16_t systicksCounter;
+extern volatile unsigned char  elmReadyToReceive;
 
 #endif

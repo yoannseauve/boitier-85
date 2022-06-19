@@ -111,6 +111,7 @@ int saveState(struct savedOperationData data)
 				return -1;
 		}
 		//write data
+	GPIOC->ODR ^= GPIO_ODR_ODR13;
 		if( memWriteAttempt((rowToWrite<<6) | dataLocation, sizeof(struct savedOperationData), (unsigned char*) (&dataCopy)))
 			return -1;
 		//update page 1
@@ -178,6 +179,7 @@ int loadState(struct savedOperationData* data)
 			break;
 		}
 	}
+
 	if( memReadAttempt((rowToRead << 6) + dataLocation, sizeof(struct savedOperationData), (unsigned char*)data))
 		return -1;
 	data->standardEnrichmentInjection &= ~ 0x80; //removed "standardEnrichmentInjection" MSB which is used as flag for memory storage

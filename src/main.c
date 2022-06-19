@@ -11,8 +11,8 @@
 
 #define BAT_SEND_BUFFER_SIZE 50
 #define ELM_SEND_BUFFER_SIZE 20
-#define UART_FRAME_TIMEOUT 50 //5s
-#define ELM_RESET_TIMEOUT 50 //5s
+#define UART_FRAME_TIMEOUT 100 //10s
+#define ELM_RESET_TIMEOUT 100 //10s
 #define LONG_TERM_FUEL_TRIM_TOLERANCE 10
 #define SHORT_TERM_FUEL_TRIM_TOLERANCE 20
 #define FUEL_ENRICHMENT_CORRECTION_DELAY 50 //5s
@@ -27,6 +27,7 @@ unsigned char coolantTemperatur = 60; //20°C
 unsigned char longTermFuelTrim = 0x80; //neutal
 unsigned char shortTermFuelTrim = 0x80; //neutal
 unsigned char additionalEnrichement = 0; //enrichment for starter
+unsigned int engineRPM = 0;
 
 uint16_t lastDataSaveDate = 0;
 uint16_t lastObdRequestDate = 0;
@@ -51,7 +52,6 @@ void main (void)
 
 	static unsigned char requestedData=0;
 	static unsigned char waitingForData=0;
-
 
 	loadState(&savedOperationData);
 	requestedData = 101; //initELM
@@ -125,7 +125,9 @@ void main (void)
 				while(uart2RemainToSend());	
 				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "ELM long term fuel trim : %d \n", longTermFuelTrim)); 
 				while(uart2RemainToSend());	
-				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "ELM short term fuel trim : %d \n\n", shortTermFuelTrim)); 
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "ELM short term fuel trim : %d \n", shortTermFuelTrim)); 
+				while(uart2RemainToSend());	
+				uart2InitiateSend(dispBuffer, mini_snprintf(dispBuffer, BAT_SEND_BUFFER_SIZE, "Engine RPM : %d \n\n", engineRPM / 4)); 
 			}
 
 			if(mini_snscanf(dataFromBt, dataFromBtSize, "bat set t0") >= 10)
@@ -202,43 +204,35 @@ void main (void)
 				//!! update savedOperationData.standardEnrichmentInjection //
 			case Manual:
 				//!! get info from ECU, temperature and fuel trim 
+				if(dataFromELM)
+				{
+					uart2InitiateSend("!! received ", 12); 
+					uart2InitiateSend(dataFromELM, dataFromELMSize); 
+					uart2InitiateSend("\n", 1); 
+				}
+
 				switch(requestedData)
 				{
 					case 0: //coolant temperature
-						if(!waitingForData)
+						if(!waitingForData && elmReadyToReceive)
 						{
 							uart1InitiateSend("0105\r", 5);
 							lastObdRequestDate = systicksCounter;	
 							waitingForData = 1;
+							uart2InitiateSend("!! sent \"0105\"\n", 15);
 						}
 						else
 						{
-							if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "4105%u", &coolantTemperatur) >= 5 )
+							if(dataFromELM)
 							{
-								waitingForData = 0;
-								requestedData++;
-							}
-							if (systicksCounter - lastObdRequestDate > UART_FRAME_TIMEOUT) //reset elm due to frame timeout 
-							{
-								waitingForData = 0;
-								requestedData = 101;//initELM
-							}
-						}
-						break;
-					
-					case 1: //long term fuel trim
-						if(!waitingForData)
-						{
-							uart1InitiateSend("0107\r", 5);
-							lastObdRequestDate = systicksCounter;	
-							waitingForData = 1;
-						}
-						else
-						{
-							if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "4107%u", &longTermFuelTrim) >= 5 )
-							{
-								waitingForData = 0;
-								requestedData++;
+
+								if(mini_snscanf(dataFromELM, dataFromELMSize, "41 05 %x", &coolantTemperatur) >= 7 )
+								{
+									waitingForData = 0;
+									requestedData++;
+
+								}
+									uartBufferTreated(0);
 							}
 							if (systicksCounter - lastObdRequestDate > UART_FRAME_TIMEOUT) //reset elm due to frame timeout 
 							{
@@ -248,36 +242,101 @@ void main (void)
 						}
 						break;
 
-					case 2: //short term fuel trim
-						if(!waitingForData)
+					case 1: //engine RPM
+						if(!waitingForData && elmReadyToReceive)
+						{
+							uart1InitiateSend("010C\r", 5);
+							lastObdRequestDate = systicksCounter;	
+							waitingForData = 1;
+							uart2InitiateSend("!! sent \"010C\"\n", 15);
+						}
+						else
+						{
+							if(dataFromELM)
+							{
+								unsigned byte1, byte2;
+								if(mini_snscanf(dataFromELM, dataFromELMSize, "41 0C %x %x", &byte1, &byte2) >= 10 )
+								{
+									waitingForData = 0;
+									engineRPM = (byte1<<8) + byte2;
+									requestedData++;
+
+								}
+								uartBufferTreated(0);
+							}
+							if (systicksCounter - lastObdRequestDate > UART_FRAME_TIMEOUT) //reset elm due to frame timeout 
+							{
+								waitingForData = 0;
+								requestedData = 101;//initELM
+							}
+						}
+						break;
+
+					case 2: //long term fuel trim
+						if(!waitingForData && elmReadyToReceive)
+						{
+							uart1InitiateSend("0107\r", 5);
+							lastObdRequestDate = systicksCounter;	
+							waitingForData = 1;
+							uart2InitiateSend("!! sent \"0107\"\n", 15);
+						}
+						else
+						{
+							if(dataFromELM)
+							{
+								if(mini_snscanf(dataFromELM, dataFromELMSize, "41 07 %x", &longTermFuelTrim) >= 7 )
+								{
+									waitingForData = 0;
+									requestedData++;
+								}
+								uartBufferTreated(0);
+							}
+							if (systicksCounter - lastObdRequestDate > UART_FRAME_TIMEOUT) //reset elm due to frame timeout 
+							{
+								waitingForData = 0;
+								requestedData = 101;//initELM
+							}
+						}
+						break;
+
+					case 3: //short term fuel trim
+						if(!waitingForData && elmReadyToReceive)
 						{
 							uart1InitiateSend("0106\r", 5);
 							lastObdRequestDate = systicksCounter;	
 							waitingForData = 1;
+							uart2InitiateSend("!! sent \"0106\"\n", 15);
 						}
 						else
 						{
-							if(dataFromELM && mini_snscanf(dataFromELM, dataFromELMSize, "4106%u", &shortTermFuelTrim) >= 5 )
+							if(dataFromELM)
 							{
-								waitingForData = 0;
-								requestedData = 0; //last data to request
-								//update fuel enrichement
-								if (systicksCounter - lastEnrichmentUpdateDate > FUEL_ENRICHMENT_CORRECTION_DELAY && boitierStatu == Normal)
+								if(mini_snscanf(dataFromELM, dataFromELMSize, "41 06 %x", &shortTermFuelTrim) >= 7 )
 								{
-									if (longTermFuelTrim > 0x80 + LONG_TERM_FUEL_TRIM_TOLERANCE) //too lean
+									waitingForData = 0;
+									requestedData = 0; //last data to request
+									//update fuel enrichement only if engine is running
+									if(engineRPM != 0)
 									{
-										if(shortTermFuelTrim > 0x80 - SHORT_TERM_FUEL_TRIM_TOLERANCE) //no obvious previous correction
-											if(savedOperationData.standardEnrichmentInjection < 127)
-												savedOperationData.standardEnrichmentInjection ++;
+										if (systicksCounter - lastEnrichmentUpdateDate > FUEL_ENRICHMENT_CORRECTION_DELAY && boitierStatu == Normal)
+										{
+											if (longTermFuelTrim > 0x80 + LONG_TERM_FUEL_TRIM_TOLERANCE) //too lean
+											{
+												if(shortTermFuelTrim > 0x80 - SHORT_TERM_FUEL_TRIM_TOLERANCE) //no obvious previous correction
+													if(savedOperationData.standardEnrichmentInjection < 127)
+														savedOperationData.standardEnrichmentInjection ++;
+											}
+											if (longTermFuelTrim < 0x80 - LONG_TERM_FUEL_TRIM_TOLERANCE) //too rich
+											{
+												if(shortTermFuelTrim < 0x80 + SHORT_TERM_FUEL_TRIM_TOLERANCE) //no obvious previous correction
+													if(savedOperationData.standardEnrichmentInjection>0)
+														savedOperationData.standardEnrichmentInjection --;
+											}
+											lastEnrichmentUpdateDate = systicksCounter;
+										}
 									}
-									if (longTermFuelTrim < 0x80 - LONG_TERM_FUEL_TRIM_TOLERANCE) //too rich
-									{
-										if(shortTermFuelTrim < 0x80 + SHORT_TERM_FUEL_TRIM_TOLERANCE) //no obvious previous correction
-											if(savedOperationData.standardEnrichmentInjection>0)
-												savedOperationData.standardEnrichmentInjection --;
-									}
-									lastEnrichmentUpdateDate = systicksCounter;
 								}
+								uartBufferTreated(0);
 							}
 							if (systicksCounter - lastObdRequestDate > UART_FRAME_TIMEOUT) //reset elm due to frame timeout 
 							{
@@ -297,6 +356,7 @@ void main (void)
 						uart1InitiateSend("AT Z\r", 5); //reset
 						lastObdRequestDate = systicksCounter;
 						requestedData = 103;
+						uart2InitiateSend("!! sent \"AT Z\"\n", 15);
 						break;
 
 					case 103: //wait for answer
@@ -318,6 +378,7 @@ void main (void)
 						uart1InitiateSend("AT E0\r", 6);
 						lastObdRequestDate = systicksCounter;
 						requestedData = 105;
+						uart2InitiateSend("!! sent \"AT E0\"\n", 16);
 						break;
 
 					case 105: //wait for answer
@@ -339,6 +400,7 @@ void main (void)
 					case 106:  //set Linefeed OFF
 						uart1InitiateSend("AT L0\r", 6);
 						lastObdRequestDate = systicksCounter;
+						uart2InitiateSend("!! sent \"AT L0\"\n", 16);
 						requestedData = 107;
 						break;
 
@@ -361,6 +423,7 @@ void main (void)
 						uart1InitiateSend("ATAT0\r", 6);
 						lastObdRequestDate = systicksCounter;
 						requestedData = 109;
+						uart2InitiateSend("!! sent \"ATAT0\"\n", 16);
 						break;
 
 					case 109: //wait for answer
@@ -382,6 +445,7 @@ void main (void)
 						uart1InitiateSend("AT SP3\r", 7);  //set protocol
 						lastObdRequestDate = systicksCounter;
 						requestedData = 111;
+						uart2InitiateSend("!! sent \"AT SP3\"\n", 17);
 						break;
 
 					case 111: //wait for answer
